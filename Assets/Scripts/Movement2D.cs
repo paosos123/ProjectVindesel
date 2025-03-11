@@ -51,7 +51,19 @@ public class Movement2D : MonoBehaviour
     private float _dashBufferCounter;
     private bool _isDashing;
     private bool _hasDashed;
+    
+   
     private bool _canDash => _dashBufferCounter > 0f && !_hasDashed;
+
+    [Header("Long Dash Variables")]
+    [SerializeField] private float _longDashSpeed = 25f;
+    [SerializeField] private float _longDashLength = 0.6f;
+    [SerializeField] private float _longDashBufferLength = 0.1f;
+    private float _longDashBufferCounter;
+    private bool _isLongDashing;
+    private bool _hasLongDashed;
+
+    private bool _canLongDash => _longDashBufferCounter > 0f && !_hasLongDashed;
 
     [Header("Ground Collision Variables")]
     [SerializeField] private float distanceGroundCheck ;
@@ -73,40 +85,42 @@ public class Movement2D : MonoBehaviour
         else _jumpBufferCounter -= Time.deltaTime;
         if (Input.GetKeyDown(KeyCode.E)) _dashBufferCounter = _dashBufferLength;
         else _dashBufferCounter -= Time.deltaTime;
+        if (Input.GetKeyDown(KeyCode.T)) _longDashBufferCounter = _longDashBufferLength;
+        else _longDashBufferCounter -= Time.deltaTime;
         
         FlipController();
     }
 
     private void FixedUpdate()
     {
-       
-        if (_canDash) StartCoroutine(Dash(_horizontalDirection, _verticalDirection));
-        if (!_isDashing)
+        if (!_isDashing && !_isLongDashing) // เพิ่มเงื่อนไขตรวจสอบสถานะการพุ่ง
         {
-            MoveCharacter();
-            if (isGrounded())
-            {
-                ApplyGroundLinearDrag();
-                _extraJumpsValue = _extraJumps;
-                _hangTimeCounter = _hangTime;
-                _hasDashed = false;
-                 
-            }
+            if (_canDash) StartCoroutine(Dash(_horizontalDirection, _verticalDirection));
+            else if (_canLongDash) StartCoroutine(LongDash(_horizontalDirection, _verticalDirection)); // แก้ไขลำดับการตรวจสอบ
             else
             {
-                ApplyAirLinearDrag();
-                FallMultiplier();
-                _hangTimeCounter -= Time.fixedDeltaTime;
-                if ( _rb.velocity.y < 0f ) _isJumping = false;
+                MoveCharacter();
+                if (isGrounded())
+                {
+                    ApplyGroundLinearDrag();
+                    _extraJumpsValue = _extraJumps;
+                    _hangTimeCounter = _hangTime;
+                    _hasDashed = false;
+                    _hasLongDashed = false;
+                }
+                else
+                {
+                    ApplyAirLinearDrag();
+                    FallMultiplier();
+                    _hangTimeCounter -= Time.fixedDeltaTime;
+                    if (_rb.velocity.y < 0f) _isJumping = false;
+                }
             }
-          
+            if (_canJump)
+            {
+                Jump(Vector2.up);
+            }
         }
-
-        if (_canJump)
-        {
-            Jump(Vector2.up);
-        }
-        
     }
 
     private Vector2 GetInput()
@@ -206,7 +220,7 @@ public class Movement2D : MonoBehaviour
         _rb.drag = 0f;
 
         Vector2 dir;
-        if (x != 0f || y != 0f) dir = new Vector2(x,y);
+        if (x != 0f || y != 0f) dir = new Vector2(x, y);
         else
         {
             if (_facingRight) dir = new Vector2(1f, 0f);
@@ -221,6 +235,33 @@ public class Movement2D : MonoBehaviour
 
         _isDashing = false;
     }
+
+    IEnumerator LongDash(float x, float y)
+    {
+        float dashStartTime = Time.time;
+        _hasLongDashed = true;
+        _isLongDashing = true;
+        _rb.velocity = Vector2.zero;
+        _rb.gravityScale = 0f;
+        _rb.drag = 0f;
+
+        Vector2 dir;
+        if (x != 0f || y != 0f) dir = new Vector2(x, y);
+        else
+        {
+            if (_facingRight) dir = new Vector2(1f, 0f);
+            else dir = new Vector2(-1f, 0f);
+        }
+
+        while (Time.time < dashStartTime + _longDashLength)
+        {
+            _rb.velocity = dir.normalized * _longDashSpeed;
+            yield return null;
+        }
+
+        _isLongDashing = false;
+    }
+
     private bool isGrounded()
     {
         if (Physics2D.BoxCast(transform.position, boxSize, 0, -transform.up, distanceGroundCheck,layerMask))
