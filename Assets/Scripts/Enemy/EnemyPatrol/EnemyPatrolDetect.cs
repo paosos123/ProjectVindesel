@@ -9,12 +9,6 @@ public class EnemyPatrolDetect : MonoBehaviour
     void Start()
     {
         enemyPatrolScript = GetComponentInParent<EnemyPatrol>();
-
-        // ตรวจสอบว่าพบสคริปต์หรือไม่ เพื่อป้องกันข้อผิดพลาด
-        if (enemyPatrolScript == null)
-        {
-            Debug.LogError("ไม่พบสคริปต์ EnemyPatrol บน GameObject นี้!");
-        }
     }
 
     // Update is called once per frame

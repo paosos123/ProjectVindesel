@@ -52,6 +52,7 @@ public class Movement2D : MonoBehaviour
     private bool _isDashing;
     private bool _hasDashed;
     
+    
    
     private bool _canDash => _dashBufferCounter > 0f && !_hasDashed;
 
@@ -69,8 +70,11 @@ public class Movement2D : MonoBehaviour
     [SerializeField] private float distanceGroundCheck ;
     [SerializeField] private Vector2 boxSize;
    
-    
-    
+    [Header("Wall Collision Variables")]
+    [SerializeField] private Vector2 boxWallSize;
+    [SerializeField] private float yDetectWallBox;
+    [SerializeField] private float xDetectWallBoxOffset = 10f;
+    private bool isHit = false;
     private void Start()
     {
         _rb = GetComponent<Rigidbody2D>();
@@ -89,6 +93,10 @@ public class Movement2D : MonoBehaviour
         else _longDashBufferCounter -= Time.deltaTime;
         
         FlipController();
+        if (isWallDetected())
+        {
+            Debug.Log("Gaae");
+        }
     }
 
     private void FixedUpdate()
@@ -230,6 +238,12 @@ public class Movement2D : MonoBehaviour
         while (Time.time < dashStartTime + _dashLength)
         {
             _rb.velocity = dir.normalized * _dashSpeed;
+            if (isWallDetected())
+            {
+                Debug.Log("Dash hit wall");
+                _isDashing = false;
+                yield break; // หยุดโครูทีนเมื่อชนกำแพง
+            }
             yield return null;
         }
 
@@ -256,6 +270,12 @@ public class Movement2D : MonoBehaviour
         while (Time.time < dashStartTime + _longDashLength)
         {
             _rb.velocity = dir.normalized * _longDashSpeed;
+            if (isWallDetected())
+            {
+                Debug.Log("Long dash hit wall");
+                _isLongDashing = false;
+                yield break; // หยุดโครูทีนเมื่อชนกำแพง
+            }
             yield return null;
         }
 
@@ -273,10 +293,49 @@ public class Movement2D : MonoBehaviour
             return false;
         }
     }
-
+    IEnumerator GetHurt()
+    {
+        Physics2D.IgnoreLayerCollision(7,8);
+        GetComponent<Animator>().SetLayerWeight(1,1);
+        isHit = true;
+        yield return new WaitForSeconds(2);
+        GetComponent<Animator>().SetLayerWeight(1,0);
+        Physics2D.IgnoreLayerCollision(7,8,false);
+        isHit = false;
+       
+    }
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.green;
         Gizmos.DrawWireCube(transform.position-transform.up*distanceGroundCheck, boxSize);
+        // Calculate the shifted position for the Gizmos
+        
+        Vector2 gizmosWallOnePosition = new Vector2(transform.position.x + xDetectWallBoxOffset, transform.position.y - yDetectWallBox);
+        Gizmos.DrawWireCube(gizmosWallOnePosition, boxWallSize);
+        Vector2 gizmosWallTwoPosition = new Vector2(transform.position.x - xDetectWallBoxOffset, transform.position.y + yDetectWallBox);
+        Gizmos.DrawWireCube(gizmosWallTwoPosition, boxWallSize);
     }
+    void OnCollisionEnter2D(Collision2D col)
+    {
+        if (col.gameObject.tag == "Enemy"&&isHit==false)
+        {
+            StartCoroutine(GetHurt());
+        }
+    }
+    private bool isWallDetected()
+    {
+        // Calculate the shifted position for the BoxCast
+        Vector2 gizmosWallOnePosition = new Vector2(transform.position.x + xDetectWallBoxOffset, transform.position.y - yDetectWallBox);
+        Vector2 gizmosWallTwoPosition = new Vector2(transform.position.x - xDetectWallBoxOffset, transform.position.y + yDetectWallBox);
+        if (Physics2D.BoxCast(gizmosWallOnePosition, boxWallSize, 0, -transform.up, yDetectWallBox, layerMask)
+            || Physics2D.BoxCast(gizmosWallTwoPosition, boxWallSize, 0, -transform.up, yDetectWallBox, layerMask))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
 }

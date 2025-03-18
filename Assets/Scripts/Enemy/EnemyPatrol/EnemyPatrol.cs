@@ -32,7 +32,7 @@ public class EnemyPatrol : Enemy
     {
         if (isDetected)
         {
-            Debug.Log("กำลังไล่ตามผู้เล่นที่ตำแหน่ง: " + playerTransform.position);
+         
             // คุณสามารถเพิ่มโค้ดสำหรับการเคลื่อนที่เข้าหาผู้เล่นได้ที่นี่
             Vector2 direction = (playerTransform.position - transform.position).normalized;
             rb.velocity = direction * speed; // ตัวอย่างการเคลื่อนที่เข้าหาผู้เล่น
