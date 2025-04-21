@@ -1,133 +1,168 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-
-//////////SETUP INSTRUCTIONS//////////
-//Attach this script a RigidBody2D to the player GameObject
-//Set Body type to Dynamic, Collision detection to continuous and Freeze Z rotation
-//Add a 2D Collider (Any will do, but 2D box collider)
-//Define the ground and wall mask layers (In the script and in the GameObjects)
-//Adjust and play around with the other variables (Some require you to activate gizmos in order to visualize)
+using UnityEngine.UI;
+using FirstGearGames.SmoothCameraShaker;
 
 public class Movement2D : MonoBehaviour
 {
     [Header("Components")]
-    private Rigidbody2D _rb;
-    private Animator _anim;
+    private Rigidbody2D rb;
+    private Animator anim;
 
     [Header("Layer Masks")]
     [SerializeField] private LayerMask layerMask;
-    
 
     [Header("Movement Variables")]
-    [SerializeField] private float _movementAcceleration = 70f;
-    [SerializeField] private float _maxMoveSpeed = 12f;
-    [SerializeField] private float _groundLinearDrag = 7f;
-    private float _horizontalDirection;
-    private float _verticalDirection;
-    private bool _changingDirection => (_rb.velocity.x > 0f && _horizontalDirection < 0f) || (_rb.velocity.x < 0f && _horizontalDirection > 0f);
-    private bool _facingRight = true;
+    [SerializeField] private float movementAcceleration = 70f;
+    [SerializeField] private float maxMoveSpeed = 12f;
+    [SerializeField] private float groundLinearDrag = 7f;
+    private float horizontalDirection;
+    private float verticalDirection;
+    private bool changingDirection => (rb.velocity.x > 0f && horizontalDirection < 0f) || (rb.velocity.x < 0f && horizontalDirection > 0f);
+    private bool facingRight = true;
 
     [Header("Jump Variables")]
-    [SerializeField] private float _jumpForce = 12f;
-    [SerializeField] private float _airLinearDrag = 2.5f;
-    [SerializeField] private float _fallMultiplier = 8f;
-    [SerializeField] private float _lowJumpFallMultiplier = 5f;
-    [SerializeField] private float _downMultiplier = 12f;
-    [SerializeField] private int _extraJumps = 1;
-    [SerializeField] private float _hangTime = .1f;
-    [SerializeField] private float _jumpBufferLength = .1f;
-    private int _extraJumpsValue;
-    private float _hangTimeCounter;
-    private float _jumpBufferCounter;
-    private bool _canJump => _jumpBufferCounter > 0f && (_hangTimeCounter > 0f || _extraJumpsValue > 0 );
-    private bool _isJumping = false;
-    
+    [SerializeField] private float jumpForce = 12f;
+    [SerializeField] private float airLinearDrag = 2.5f;
+    [SerializeField] private float fallMultiplier = 8f;
+    [SerializeField] private float lowJumpFallMultiplier = 5f;
+    [SerializeField] private float downMultiplier = 12f;
+    [SerializeField] private int extraJumps = 1;
+    [SerializeField] private float hangTime = .1f;
+    [SerializeField] private float jumpBufferLength = .1f;
+    private int extraJumpsValue;
+    private float hangTimeCounter;
+    private float jumpBufferCounter;
+    private bool canJump => jumpBufferCounter > 0f && (hangTimeCounter > 0f || extraJumpsValue > 0);
+    private bool isJumping = false;
+    private bool isGroundedState; // สถานะการติดพื้น
 
     [Header("Dash Variables")]
-    [SerializeField] private float _dashSpeed = 15f;
-    [SerializeField] private float _dashLength = .3f;
-    [SerializeField] private float _dashBufferLength = .1f;
-    private float _dashBufferCounter;
-    private bool _isDashing;
-    private bool _hasDashed;
-    
-    
-   
-    private bool _canDash => _dashBufferCounter > 0f && !_hasDashed;
+    [SerializeField] private float dashSpeed = 15f;
+    [SerializeField] private float dashLength = .3f;
+    [SerializeField] private float dashBufferLength = .1f;
+    [SerializeField] private float dashCooldown = 2f; // เพิ่มตัวแปรคูลดาวน์
+    [SerializeField] ShakeData dashShake; 
+    private float dashCooldownTimer = 0f; // ตัวนับเวลาคูลดาวน์
+    private float dashBufferCounter;
+    private bool isDashing;
+    private bool hasDashed;
+    private bool canDash => dashBufferCounter > 0f && !hasDashed && dashCooldownTimer <= 0f; // เช็คคูลดาวน์
 
     [Header("Long Dash Variables")]
-    [SerializeField] private float _longDashSpeed = 25f;
-    [SerializeField] private float _longDashLength = 0.6f;
-    [SerializeField] private float _longDashBufferLength = 0.1f;
-    private float _longDashBufferCounter;
-    private bool _isLongDashing;
-    private bool _hasLongDashed;
-
-    private bool _canLongDash => _longDashBufferCounter > 0f && !_hasLongDashed;
+    [SerializeField] private float longDashSpeed = 25f;
+    [SerializeField] private float longDashLength = 0.6f;
+    [SerializeField] private float longDashBufferLength = 0.1f;
+    [SerializeField] private float longDashCooldown = 3f;
+    [SerializeField] ShakeData longDashShake;
+    private TrailRenderer longDashTrail;
+    private float longDashCooldownTimer = 0f;
+    private float longDashBufferCounter;
+    private bool isLongDashing;
+    private bool hasLongDashed;
+    private bool canLongDash => longDashBufferCounter > 0f && !hasLongDashed && longDashCooldownTimer <= 0f;
+    private Ghost ghostScript;
 
     [Header("Ground Collision Variables")]
-    [SerializeField] private float distanceGroundCheck ;
+    [SerializeField] private float distanceGroundCheck;
     [SerializeField] private Vector2 boxSize;
-   
+
     [Header("Wall Collision Variables")]
-    [SerializeField] private Vector2 boxWallSize;
-    [SerializeField] private float yDetectWallBox;
-    [SerializeField] private float xDetectWallBoxOffset = 10f;
+    private bool isWallCollisionDuringDash = false;
+    private Vector2 collisionNormalDuringDash = Vector2.zero;
+    private Vector2 lastDashDirection = Vector2.zero;
     private bool isHit = false;
+
+    [Header("UI")]
+    [SerializeField] private Image longDashFillImage;
+    [SerializeField] private Image DashFillImage;
     private void Start()
     {
-        _rb = GetComponent<Rigidbody2D>();
-        _anim = GetComponent<Animator>();
+        rb = GetComponent<Rigidbody2D>();
+        anim = GetComponent<Animator>();
+        longDashTrail = GetComponent<TrailRenderer>();
+        ghostScript = GetComponent<Ghost>();
+        isGroundedState = IsGroundedCheck();
+
     }
 
     private void Update()
     {
-        _horizontalDirection = GetInput().x;
-        _verticalDirection = GetInput().y;
-        if (Input.GetButtonDown("Jump")) _jumpBufferCounter = _jumpBufferLength;
-        else _jumpBufferCounter -= Time.deltaTime;
-        if (Input.GetKeyDown(KeyCode.E)) _dashBufferCounter = _dashBufferLength;
-        else _dashBufferCounter -= Time.deltaTime;
-        if (Input.GetKeyDown(KeyCode.T)) _longDashBufferCounter = _longDashBufferLength;
-        else _longDashBufferCounter -= Time.deltaTime;
-        
+        horizontalDirection = GetInput().x;
+        verticalDirection = GetInput().y;
+        if (Input.GetButtonDown("Jump")) jumpBufferCounter = jumpBufferLength;
+        else jumpBufferCounter -= Time.deltaTime;
+        if (Input.GetKeyDown(KeyCode.E)) dashBufferCounter = dashBufferLength;
+        else dashBufferCounter -= Time.deltaTime;
+        if (Input.GetKeyDown(KeyCode.T)) longDashBufferCounter = longDashBufferLength;
+        else longDashBufferCounter -= Time.deltaTime;
+
+        UpdateAnimatorParameters();
         FlipController();
-        if (isWallDetected())
-        {
-            Debug.Log("Gaae");
-        }
     }
 
     private void FixedUpdate()
     {
-        if (!_isDashing && !_isLongDashing) // เพิ่มเงื่อนไขตรวจสอบสถานะการพุ่ง
+        UpdateLongDashCooldown();
+        UpdateDashCooldown(); // อัปเดตคูลดาวน์ Dash
+        longDashFillImage.fillAmount = 1f - (longDashCooldownTimer / longDashCooldown);
+        DashFillImage.fillAmount = 1f - (dashCooldownTimer / dashCooldown); // อัปเดต UI คูลดาวน์ Dash
+
+        bool wasGrounded = isGroundedState;
+        isGroundedState = IsGroundedCheck();
+
+        if (!isDashing && !isLongDashing)
         {
-            if (_canDash) StartCoroutine(Dash(_horizontalDirection, _verticalDirection));
-            else if (_canLongDash) StartCoroutine(LongDash(_horizontalDirection, _verticalDirection)); // แก้ไขลำดับการตรวจสอบ
+            if (canDash) StartCoroutine(Dash(horizontalDirection, verticalDirection));
+            else if (canLongDash) StartCoroutine(LongDash(horizontalDirection, verticalDirection));
             else
             {
                 MoveCharacter();
-                if (isGrounded())
+                if (isGroundedState)
                 {
                     ApplyGroundLinearDrag();
-                    _extraJumpsValue = _extraJumps;
-                    _hangTimeCounter = _hangTime;
-                    _hasDashed = false;
-                    _hasLongDashed = false;
+                    if (!wasGrounded) // รีเซ็ตค่าเมื่อลงสู่พื้น
+                    {
+                        extraJumpsValue = extraJumps;
+                        hasDashed = false;
+                        hasLongDashed = false;
+                        isJumping = false;
+                        anim.SetBool("isJumping", false);
+                        anim.SetBool("isFalling", false);
+                        dashCooldownTimer = 0f; // รีเซ็ตคูลดาวน์ Dash เมื่อลงพื้น
+                    }
+                    if (hasDashed && isGroundedState)
+                    {
+                        dashCooldownTimer = 0f;
+                        hasDashed = false; // รีเซ็ตสถานะการแดชแล้ว เพื่อให้สามารถแดชใหม่ได้
+                    }
+                    hangTimeCounter = hangTime;
                 }
                 else
                 {
                     ApplyAirLinearDrag();
                     FallMultiplier();
-                    _hangTimeCounter -= Time.fixedDeltaTime;
-                    if (_rb.velocity.y < 0f) _isJumping = false;
+                    hangTimeCounter -= Time.fixedDeltaTime;
+                    if (rb.velocity.y < 0f)
+                    {
+                        isJumping = false;
+                        anim.SetBool("isFalling", true);
+                        anim.SetBool("isJumping", false);
+                    }
+                    else if (rb.velocity.y > 0f && isJumping)
+                    {
+                        anim.SetBool("isFalling", false);
+                    }
                 }
             }
-            if (_canJump)
+            if (canJump)
             {
                 Jump(Vector2.up);
             }
+        }
+        else if (isDashing || isLongDashing)
+        {
+            return;
         }
     }
 
@@ -138,204 +173,237 @@ public class Movement2D : MonoBehaviour
 
     private void MoveCharacter()
     {
-        _rb.AddForce(new Vector2(_horizontalDirection, 0f) * _movementAcceleration);
+        rb.AddForce(new Vector2(horizontalDirection, 0f) * movementAcceleration);
 
-        if (Mathf.Abs(_rb.velocity.x) > _maxMoveSpeed)
-            _rb.velocity = new Vector2(Mathf.Sign(_rb.velocity.x) * _maxMoveSpeed, _rb.velocity.y);
+        if (Mathf.Abs(rb.velocity.x) > maxMoveSpeed)
+            rb.velocity = new Vector2(Mathf.Sign(rb.velocity.x) * maxMoveSpeed, rb.velocity.y);
     }
 
     private void ApplyGroundLinearDrag()
     {
-        if (Mathf.Abs(_horizontalDirection) < 0.4f || _changingDirection)
-        {
-            _rb.drag = _groundLinearDrag;
-        }
-        else
-        {
-            _rb.drag = 0f;
-        }
+        rb.drag = (Mathf.Abs(horizontalDirection) < 0.4f || changingDirection) ? groundLinearDrag : 0f;
     }
 
     private void ApplyAirLinearDrag()
     {
-         _rb.drag = _airLinearDrag;
+        rb.drag = airLinearDrag;
     }
 
     private void Jump(Vector2 direction)
     {
-        if (!isGrounded())
-            _extraJumpsValue--;
+        if (!isGroundedState)
+            extraJumpsValue--;
 
+       
         ApplyAirLinearDrag();
-        _rb.velocity = new Vector2(_rb.velocity.x, 0f);
-        _rb.AddForce(direction * _jumpForce, ForceMode2D.Impulse);
-        _hangTimeCounter = 0f;
-        _jumpBufferCounter = 0f;
-        _isJumping = true;
+        rb.velocity = new Vector2(rb.velocity.x, 0f);
+        rb.AddForce(direction * jumpForce, ForceMode2D.Impulse);
+        hangTimeCounter = 0f;
+        jumpBufferCounter = 0f;
+        isJumping = true;
+        anim.SetBool("isJumping", true);
+        anim.SetBool("isFalling", false);
     }
 
-   
-
-   
-    
     private void FallMultiplier()
     {
-        if (_verticalDirection < 0f)
-        {
-            _rb.gravityScale = _downMultiplier;
-        }
+        if (verticalDirection < 0f)
+            rb.gravityScale = downMultiplier;
+        else if (rb.velocity.y < 0)
+            rb.gravityScale = fallMultiplier;
+        else if (rb.velocity.y > 0 && !Input.GetButton("Jump"))
+            rb.gravityScale = lowJumpFallMultiplier;
         else
-        {
-            if (_rb.velocity.y < 0)
-            {
-                _rb.gravityScale = _fallMultiplier;
-            }
-            else if (_rb.velocity.y > 0 && !Input.GetButton("Jump"))
-            {
-                _rb.gravityScale = _lowJumpFallMultiplier;
-            }
-            else
-            {
-                _rb.gravityScale = 1f;
-            }
-        }
+            rb.gravityScale = 1f;
     }
 
     void FlipController()
     {
-        if(_rb.velocity.x < 0f &&  _facingRight)
-            Flip();
-        else if(_rb.velocity.x > 0f && !_facingRight)
+        if ((rb.velocity.x < 0f && facingRight) || (rb.velocity.x > 0f && !facingRight))
             Flip();
     }
-   
 
     void Flip()
     {
-        _facingRight = !_facingRight;
+        facingRight = !facingRight;
         transform.Rotate(0f, 180f, 0f);
     }
 
-    IEnumerator Dash(float x, float y)
+ IEnumerator Dash(float x, float y)
     {
         float dashStartTime = Time.time;
-        _hasDashed = true;
-        _isDashing = true;
-        _isJumping = false;
+        hasDashed = true;
+        isDashing = true;
+        isJumping = false;
+        SetDashAnimation(true);
+        rb.velocity = Vector2.zero;
+        rb.gravityScale = 0f;
+        rb.drag = 0f;
+        ghostScript.StartGhosting();
+        CameraShakerHandler.Shake(dashShake);
+        lastDashDirection = (x != 0f || y != 0f) ? new Vector2(x, y).normalized : (facingRight ? Vector2.right : Vector2.left);
 
-        _rb.velocity = Vector2.zero;
-        _rb.gravityScale = 0f;
-        _rb.drag = 0f;
-
-        Vector2 dir;
-        if (x != 0f || y != 0f) dir = new Vector2(x, y);
-        else
+        while (Time.time < dashStartTime + dashLength)
         {
-            if (_facingRight) dir = new Vector2(1f, 0f);
-            else dir = new Vector2(-1f, 0f);
-        }
-
-        while (Time.time < dashStartTime + _dashLength)
-        {
-            _rb.velocity = dir.normalized * _dashSpeed;
-            if (isWallDetected())
-            {
-                Debug.Log("Dash hit wall");
-                _isDashing = false;
-                yield break; // หยุดโครูทีนเมื่อชนกำแพง
-            }
+            rb.velocity = lastDashDirection * dashSpeed;
             yield return null;
         }
 
-        _isDashing = false;
+        isDashing = false;
+        SetDashAnimation(false);
+        ghostScript.StopGhosting();
+        dashCooldownTimer = dashCooldown;
+        hasDashed = false;
+
+        // ตรวจสอบการชนหลังแดช และหยุดการเคลื่อนที่ในทิศทางของการชน
+        if (isWallCollisionDuringDash)
+        {
+            // ปรับความเร็วในทิศทางที่ตั้งฉากกับทิศทางของการชนให้เป็น 0
+            Vector2 wallTangent = Vector2.Perpendicular(collisionNormalDuringDash).normalized;
+            float projection = Vector2.Dot(rb.velocity, wallTangent);
+            rb.velocity -= projection * wallTangent;
+
+            isWallCollisionDuringDash = false;
+            collisionNormalDuringDash = Vector2.zero;
+        }
     }
 
     IEnumerator LongDash(float x, float y)
     {
         float dashStartTime = Time.time;
-        _hasLongDashed = true;
-        _isLongDashing = true;
-        _rb.velocity = Vector2.zero;
-        _rb.gravityScale = 0f;
-        _rb.drag = 0f;
+        hasLongDashed = true;
+        isLongDashing = true;
+        rb.velocity = Vector2.zero;
+        rb.gravityScale = 0f;
+        rb.drag = 0f;
+        SetLongDashAnimation(true);
+        longDashTrail.emitting = true;
+        ghostScript.StartGhosting();
+        CameraShakerHandler.Shake(longDashShake);
+        Vector2 longDashDirection = (x != 0f || y != 0f) ? new Vector2(x, y).normalized : (facingRight ? Vector2.right : Vector2.left);
+        lastDashDirection = longDashDirection;
 
-        Vector2 dir;
-        if (x != 0f || y != 0f) dir = new Vector2(x, y);
-        else
+        while (Time.time < dashStartTime + longDashLength)
         {
-            if (_facingRight) dir = new Vector2(1f, 0f);
-            else dir = new Vector2(-1f, 0f);
-        }
-
-        while (Time.time < dashStartTime + _longDashLength)
-        {
-            _rb.velocity = dir.normalized * _longDashSpeed;
-            if (isWallDetected())
-            {
-                Debug.Log("Long dash hit wall");
-                _isLongDashing = false;
-                yield break; // หยุดโครูทีนเมื่อชนกำแพง
-            }
+            rb.velocity = longDashDirection * longDashSpeed;
             yield return null;
         }
 
-        _isLongDashing = false;
+        isLongDashing = false;
+        SetLongDashAnimation(false);
+        anim.SetBool("isFalling", false);
+        longDashCooldownTimer = longDashCooldown;
+        longDashTrail.emitting = false;
+        ghostScript.StopGhosting();
+        hasLongDashed = false;
+
+        // ตรวจสอบการชนหลัง Long Dash และหยุดการเคลื่อนที่ในทิศทางของการชน
+        if (isWallCollisionDuringDash)
+        {
+            // ปรับความเร็วในทิศทางที่ตั้งฉากกับทิศทางของการชนให้เป็น 0
+            Vector2 wallTangent = Vector2.Perpendicular(collisionNormalDuringDash).normalized;
+            float projection = Vector2.Dot(rb.velocity, wallTangent);
+            rb.velocity -= projection * wallTangent;
+
+            isWallCollisionDuringDash = false;
+            collisionNormalDuringDash = Vector2.zero;
+        }
     }
 
-    private bool isGrounded()
+    void OnCollisionEnter2D(Collision2D collision)
     {
-        if (Physics2D.BoxCast(transform.position, boxSize, 0, -transform.up, distanceGroundCheck,layerMask))
+        if ((isDashing || isLongDashing) && (collision.gameObject.CompareTag("Ground") || collision.gameObject.CompareTag("Wall")))
         {
-            return true;
+            isWallCollisionDuringDash = true;
+            collisionNormalDuringDash = collision.contacts[0].normal;
         }
-        else
-        {
-            return false;
-        }
-    }
-    IEnumerator GetHurt()
-    {
-        Physics2D.IgnoreLayerCollision(7,8);
-        GetComponent<Animator>().SetLayerWeight(1,1);
-        isHit = true;
-        yield return new WaitForSeconds(2);
-        GetComponent<Animator>().SetLayerWeight(1,0);
-        Physics2D.IgnoreLayerCollision(7,8,false);
-        isHit = false;
-       
-    }
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireCube(transform.position-transform.up*distanceGroundCheck, boxSize);
-        // Calculate the shifted position for the Gizmos
-        
-        Vector2 gizmosWallOnePosition = new Vector2(transform.position.x + xDetectWallBoxOffset, transform.position.y - yDetectWallBox);
-        Gizmos.DrawWireCube(gizmosWallOnePosition, boxWallSize);
-        Vector2 gizmosWallTwoPosition = new Vector2(transform.position.x - xDetectWallBoxOffset, transform.position.y + yDetectWallBox);
-        Gizmos.DrawWireCube(gizmosWallTwoPosition, boxWallSize);
-    }
-    void OnCollisionEnter2D(Collision2D col)
-    {
-        if (col.gameObject.tag == "Enemy"&&isHit==false)
+        if (collision.gameObject.CompareTag("Enemy") && !isHit)
         {
             StartCoroutine(GetHurt());
         }
+        
     }
-    private bool isWallDetected()
+
+    void OnCollisionStay2D(Collision2D collision)
     {
-        // Calculate the shifted position for the BoxCast
-        Vector2 gizmosWallOnePosition = new Vector2(transform.position.x + xDetectWallBoxOffset, transform.position.y - yDetectWallBox);
-        Vector2 gizmosWallTwoPosition = new Vector2(transform.position.x - xDetectWallBoxOffset, transform.position.y + yDetectWallBox);
-        if (Physics2D.BoxCast(gizmosWallOnePosition, boxWallSize, 0, -transform.up, yDetectWallBox, layerMask)
-            || Physics2D.BoxCast(gizmosWallTwoPosition, boxWallSize, 0, -transform.up, yDetectWallBox, layerMask))
+        if ((isDashing || isLongDashing) && (collision.gameObject.CompareTag("Ground") || collision.gameObject.CompareTag("Wall")))
         {
-            return true;
+            isWallCollisionDuringDash = true;
+            collisionNormalDuringDash = collision.contacts[0].normal;
         }
-        else
+    }
+    private bool IsGroundedCheck()
+    {
+        return Physics2D.BoxCast(transform.position, boxSize, 0, -transform.up, distanceGroundCheck, layerMask);
+    }
+
+   
+    IEnumerator GetHurt()
+    {
+        Physics2D.IgnoreLayerCollision(7, 8);
+        anim.SetLayerWeight(1, 1);
+        isHit = true;
+        yield return new WaitForSeconds(2);
+        anim.SetLayerWeight(1, 0);
+        Physics2D.IgnoreLayerCollision(7, 8, false);
+        isHit = false;
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireCube(transform.position - transform.up * distanceGroundCheck, boxSize);
+
+
+    }
+
+   
+    private void UpdateLongDashCooldown()
+    {
+        if (longDashCooldownTimer > 0f)
         {
-            return false;
+            longDashCooldownTimer -= Time.fixedDeltaTime;
+            if (longDashCooldownTimer < 0f)
+            {
+                longDashCooldownTimer = 0f;
+            }
         }
     }
 
+    private void UpdateDashCooldown()
+    {
+        if (dashCooldownTimer > 0f)
+        {
+            dashCooldownTimer -= Time.fixedDeltaTime;
+            if (dashCooldownTimer < 0f)
+            {
+                dashCooldownTimer = 0f;
+            }
+        }
+    }
+
+    private void UpdateAnimatorParameters()
+    {
+        bool isMoving = Mathf.Abs(horizontalDirection) > 0.1f;
+        bool onGround = isGroundedState && !isDashing && !isLongDashing;
+
+        anim.SetBool("isRunning", isMoving && onGround);
+        anim.SetBool("isIdle", !isMoving && onGround);
+    }
+
+    private void SetDashAnimation(bool isDashing)
+    {
+        anim.SetBool("isDashing", isDashing);
+        anim.SetBool("isLongDashing", false);
+        anim.SetBool("isJumping", false);
+        anim.SetBool("isFalling", false);
+    }
+
+    private void SetLongDashAnimation(bool isLongDashing)
+    {
+        anim.SetBool("isLongDashing", isLongDashing);
+        anim.SetBool("isDashing", false);
+        anim.SetBool("isJumping", false);
+        anim.SetBool("isFalling", false);
+    }
 }
