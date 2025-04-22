@@ -24,7 +24,7 @@ public class EnemyPatrolDetect : MonoBehaviour
             // ตรวจสอบว่า enemyPatrolScript ถูกต้องหรือไม่ก่อนใช้งาน
             if (enemyPatrolScript != null)
             {
-                enemyPatrolScript.isDetected = true; // ตั้งค่า isDetected ใน EnemyPatrol เป็น true
+             // ตั้งค่า isDetected ใน EnemyPatrol เป็น true
                 enemyPatrolScript.playerTransform = col.transform;// เก็บตำแหน่งของผู้เล่น
                 Debug.Log("ตรวจพบผู้เล่น!");
             }

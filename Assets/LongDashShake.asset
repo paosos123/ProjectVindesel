@@ -18,57 +18,57 @@ MonoBehaviour:
   _shakeObjects: 0
   _iterationPercent: 1
   _unlimitedDuration: 0
-  _totalDuration: 1
+  _totalDuration: 0.5
   _fadeInDuration: 0.1
   _fadeOutDuration: 0.1
-  _magnitude: 2.33
-  _magnitudeNoise: 0.735
+  _magnitude: 4
+  _magnitudeNoise: 0.2
   _magnitudeCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 1
-      inSlope: -1.0169449
-      outSlope: -1.0169449
+      value: 0
+      inSlope: 1
+      outSlope: 1
       tangentMode: 34
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.33333334
+      outWeight: 0
     - serializedVersion: 3
-      time: 0.9833374
-      value: 0
-      inSlope: -1.0169449
-      outSlope: -1.0169449
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
       tangentMode: 34
       weightedMode: 0
-      inWeight: 0.33333334
+      inWeight: 0
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  _roughness: 1
-  _roughnessNoise: 1
+  _roughness: 0
+  _roughnessNoise: 0
   _roughnessCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 1
-      inSlope: -1.0005356
-      outSlope: -1.0005356
-      tangentMode: 34
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.33333334
+      outWeight: 0
     - serializedVersion: 3
-      time: 1.0041809
-      value: -0.0047187805
-      inSlope: -1.0005356
-      outSlope: -1.0005356
-      tangentMode: 34
+      time: 1
+      value: 1
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
       weightedMode: 0
-      inWeight: 0.33333334
+      inWeight: 0
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2

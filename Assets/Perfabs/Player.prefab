@@ -185,7 +185,7 @@ MonoBehaviour:
   fallMultiplier: 8
   lowJumpFallMultiplier: 5
   downMultiplier: 12
-  extraJumps: 1
+  extraJumps: 0
   hangTime: 0.1
   jumpBufferLength: 0.1
   dashSpeed: 20
@@ -194,17 +194,16 @@ MonoBehaviour:
   dashCooldown: 1
   dashShake: {fileID: 11400000, guid: bdf99ef0cc5196f43908e130e4f5c777, type: 2}
   longDashSpeed: 30
-  longDashLength: 0.45
+  longDashLength: 0.3
   longDashBufferLength: 0.1
-  longDashCooldown: 3
+  longDashCooldown: 5
   longDashShake: {fileID: 11400000, guid: 7d29160c4b2a9a243910fe656fa954e0, type: 2}
   distanceGroundCheck: 2.36
   boxSize: {x: 1.33, y: 0.27}
-  boxWallSize: {x: 0.25, y: 0.91}
-  yDetectWallBox: 0
-  xDetectWallBoxOffset: 0.77
   longDashFillImage: {fileID: 0}
   DashFillImage: {fileID: 0}
+  hp: 3
+  maxLife: 3
 --- !u!95 &3699794507452335814
 Animator:
   serializedVersion: 5
