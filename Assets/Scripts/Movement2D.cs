@@ -99,8 +99,35 @@ public class Movement2D : MonoBehaviour
     [Header("UI")]
     [SerializeField] private Image longDashFillImage;
     [SerializeField] private Image DashFillImage;
+    [SerializeField] private GameObject[] heartIcons; // เพิ่ม Array สำหรับเก็บ GameObject หัวใจ
     #endregion
+    
+    #region UI Methods // เพิ่ม Header ใหม่สำหรับ UI methods
+    private void UpdateHeartsUI()
+    {
+        // ตรวจสอบให้แน่ใจว่าจำนวนหัวใจใน UI ไม่เกินจำนวนหัวใจสูงสุดที่เรามีใน Array
+        int heartsToShow = Mathf.Clamp(hp, 0, heartIcons.Length);
 
+        // วนลูปเพื่อเปิด/ปิดการแสดงผลของหัวใจ
+        for (int i = 0; i < heartIcons.Length; i++)
+        {
+            if (heartIcons[i] != null) // ตรวจสอบว่ามี GameObject ในตำแหน่งนี้หรือไม่
+            {
+                // ถ้า Index (i) น้อยกว่าจำนวน HP ปัจจุบัน ให้เปิดการแสดงผล
+                if (i < heartsToShow)
+                {
+                    heartIcons[i].SetActive(true);
+                }
+                // ถ้า Index (i) มากกว่าหรือเท่ากับจำนวน HP ปัจจุบัน ให้ปิดการแสดงผล
+                else
+                {
+                    heartIcons[i].SetActive(false);
+                }
+            }
+        }
+    }
+    #endregion
+    
     #region Header: Health and Life
     [Header("Health and Life")]
     [SerializeField] private int hp = 3;
@@ -135,6 +162,7 @@ public class Movement2D : MonoBehaviour
         isGroundedState = IsGroundedCheck();
         currentCheckpoint = transform.position;
         playerCollider = GetComponent<Collider2D>();
+        UpdateHeartsUI();
     }
 
     private void Update()
@@ -546,6 +574,7 @@ public class Movement2D : MonoBehaviour
         {
             HP -= damageAmount;
             Debug.Log("Player took " + damageAmount + " damage! HP: " + HP + " / Life: " + Life);
+            UpdateHeartsUI();
             StartCoroutine(GetHurt());
 
             if (HP <= 0)
@@ -581,6 +610,7 @@ public class Movement2D : MonoBehaviour
         anim.Play("Idle");
         isHit = false;
         Debug.Log("Player respawned at: " + currentCheckpoint + " with HP: " + HP + " and Life: " + Life);
+        UpdateHeartsUI();
     }
 
     private void GameOver()
