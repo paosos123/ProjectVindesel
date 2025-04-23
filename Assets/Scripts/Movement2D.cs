@@ -362,6 +362,8 @@ public class Movement2D : MonoBehaviour
     }
     #endregion
 
+   // Inside your Movement2D.cs script
+
     #region Long Dash Methods
     IEnumerator LongDash(float x, float y)
     {
@@ -382,6 +384,7 @@ public class Movement2D : MonoBehaviour
         Physics2D.IgnoreLayerCollision(gameObject.layer, LayerMask.NameToLayer("Enemy"), true);
 
         List<GameObject> hitEnemiesLongDash = new List<GameObject>();
+        longDashKillConfirmed = false; // รีเซ็ต flag ก่อนเริ่ม Long Dash
 
         while (Time.time < longDashStartTime + longDashLength)
         {
@@ -392,14 +395,21 @@ public class Movement2D : MonoBehaviour
             {
                 GameObject enemyGameObject = hitCollider.gameObject;
                 Enemy enemyScript = enemyGameObject.GetComponent<Enemy>();
+                // ตรวจสอบว่า enemyScript ยังไม่เป็น null และยังไม่ถูก process ใน dash ครั้งนี้
                 if (enemyScript != null && !hitEnemiesLongDash.Contains(enemyGameObject))
                 {
-                    enemyScript.TakeDamage(longDashDamage);
-                    Debug.Log("Player long dashed through and hit " + enemyGameObject.name + " for " + longDashDamage + " damage!");
-                    hitEnemiesLongDash.Add(enemyGameObject);
+                    // เรียก TakeDamage และรับค่า return
+                    bool killedByDash = enemyScript.TakeDamage(longDashDamage);
 
-                    if (enemyScript.CurrentHp <= 0 && !enemyScript.IsDead)
-                        longDashKillConfirmed = true;
+                    Debug.Log("Player long dashed through and hit " + enemyGameObject.name + " for " + longDashDamage + " damage!");
+                    hitEnemiesLongDash.Add(enemyGameObject); // เพิ่มเข้า list ที่โดนชนแล้ว เพื่อไม่ให้โดนชนซ้ำใน dash เดียวกัน
+
+                    // ถ้า killedByDash เป็น true แสดงว่าศัตรูตัวนี้ตายจากการโจมตีครั้งนี้
+                    if (killedByDash)
+                    {
+                         longDashKillConfirmed = true; // ตั้งค่า flag
+                         Debug.Log("Enemy confirmed killed by long dash: " + enemyGameObject.name); // เพิ่ม debug log ตรงนี้เพื่อยืนยัน
+                    }
                 }
             }
             yield return null;
@@ -410,20 +420,22 @@ public class Movement2D : MonoBehaviour
         isLongDashing = false;
         SetLongDashAnimation(false);
         anim.SetBool("isFalling", false);
+
+        // ตรวจสอบ flag ที่ตั้งค่าในขณะที่ dash อยู่
         if (longDashKillConfirmed)
         {
-            longDashCooldownTimer = 0f;
-            Debug.Log("Long Dash cooldown reset after kill.");
-            longDashKillConfirmed = false;
+            longDashCooldownTimer = 0f; // รีเซ็ต cooldown เป็น 0
+            Debug.Log("Long Dash cooldown reset after kill."); // Log นี้ควรจะขึ้นแล้ว
         }
         else
-            longDashCooldownTimer = longDashCooldown;
+            longDashCooldownTimer = longDashCooldown; // ถ้าไม่ตาย ให้ใช้ cooldown ปกติ
+
         longDashBufferCounter = 0f;
         longDashTrail.emitting = false;
         ghostScript.StopGhosting();
         hasLongDashed = false;
         rb.gravityScale = 1f;
-        enemiesHitDuringLongDash.Clear();
+        // enemiesHitDuringLongDash.Clear(); // รายการนี้ดูเหมือนจะไม่ได้ใช้งานในโค้ดที่ให้มา อาจจะลบทิ้งได้
     }
     #endregion
 

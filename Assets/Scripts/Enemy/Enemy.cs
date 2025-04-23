@@ -1,66 +1,59 @@
 using UnityEngine;
+using System.Collections; // ต้องเพิ่ม using นี้สำหรับ Coroutine
 
 public class Enemy : MonoBehaviour
 {
-    [SerializeField] private int maxHp = 3;
-    [SerializeField] protected int currentHpInternal; // เปลี่ยนชื่อตัวแปรภายใน
-    private bool isDeadInternal = false; // เปลี่ยนชื่อตัวแปรภายใน
+    [SerializeField] protected int maxHp = 5; // เพิ่ม max HP เหมือนผู้เล่น
+    protected int currentHp;
 
-    public int CurrentHp
-    {
-        get { return currentHpInternal; }
-        protected set { currentHpInternal = value; } // อนุญาตให้คลาสลูกแก้ไขได้
-    }
-
-    public bool IsDead
-    {
-        get { return isDeadInternal; }
-        protected set { isDeadInternal = value; } // อนุญาตให้คลาสลูกแก้ไขได้
-    }
-
-    public delegate void EnemyDamaged(int currentHealth, int damageTaken);
-    public event EnemyDamaged OnEnemyDamaged;
-
-    public delegate void EnemyKilled();
-    public event EnemyKilled OnEnemyKilled;
+    public bool IsDead { get; protected set; } // ทำให้ IsDead อ่านได้จากภายนอกและตั้งค่าได้ในคลาสนี้และคลาสลูก
+    public int CurrentHp { get { return currentHp; } } //
 
     protected virtual void Start()
     {
-        CurrentHp = maxHp; // ใช้ Property ในการตั้งค่า
-        IsDead = false; // ใช้ Property ในการตั้งค่า
+        currentHp = maxHp;
+        IsDead = false;
     }
 
-    public virtual void TakeDamage(int damageAmount)
+    public virtual bool TakeDamage(int damageAmount)
     {
-        Debug.Log(gameObject.name + " TakeDamage called with damage: " + damageAmount + ", currentHp before: " + CurrentHp + ", isDead: " + IsDead);
+        if (IsDead) return false; // ถ้าตายแล้ว ไม่รับ damage อีก
 
-        if (IsDead) // ใช้ Property ในการตรวจสอบ
+        currentHp -= damageAmount;
+        Debug.Log(gameObject.name + " took " + damageAmount + " damage. Current HP: " + currentHp);
+
+        if (currentHp <= 0)
         {
-            Debug.Log(gameObject.name + " is already dead, returning.");
-            return;
+            IsDead = true; // ตั้งค่า IsDead เป็น true ก่อนที่จะทำลาย object หรือเริ่มกระบวนการตาย
+            Die(); // เรียก method การตาย
+            return true; // แจ้งว่าตาย
         }
 
-        CurrentHp -= damageAmount; // ใช้ Property ในการแก้ไข
-        Debug.Log(gameObject.name + " currentHp after damage: " + CurrentHp);
+        // ถ้าไม่ตาย อาจจะมีการทำอะไรบางอย่างเมื่อโดนโจมตีแต่ไม่ตาย
+        // เช่น แสดง animation โดนตี
+        // ...
 
-        OnEnemyDamaged?.Invoke(CurrentHp, damageAmount);
-
-        if (CurrentHp <= 0 && !IsDead) // ใช้ Property ในการตรวจสอบ
-        {
-            IsDead = true; // ใช้ Property ในการแก้ไข
-            Debug.Log(gameObject.name + " HP depleted, calling Die().");
-            Die();
-        }
+        return false; // แจ้งว่าไม่ตาย
     }
 
-  protected virtual void Die()
-{
-    Debug.Log(gameObject.name + " Die() called. Invoking OnEnemyKilled event.");
-    OnEnemyKilled?.Invoke();
-    Destroy(gameObject);
-}
-    void Update()
+    protected virtual void Die()
     {
-        // ... (โค้ด Update อื่นๆ ถ้ามี) ...
+        Debug.Log(gameObject.name + " is dead.");
+        // นี่คือส่วนที่คุณจะจัดการการตายของศัตรู
+        // เช่น เล่น animation ตาย, ปล่อย item, ทำลาย object
+        // เพื่อให้แน่ใจว่าโค้ดฝั่งผู้เล่นทำงานถูกต้อง อาจจะหน่วงเวลาก่อน Destroy สักเล็กน้อย
+        // หรือใช้การตั้งค่า active(false) แทนการ Destroy ทันทีถ้าใช้ Pooling
+        Destroy(gameObject, 0.1f); // ตัวอย่าง: ทำลาย object หลังจาก 0.1 วินาที
+        // หรือ gameObject.SetActive(false); ถ้าใช้ object pooling
     }
+
+    // Coroutine สำหรับหน่วงเวลาการทำลาย
+    private IEnumerator DestroyAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        Destroy(gameObject);
+    }
+
+    // คุณอาจจะต้องมีฟังก์ชันสำหรับ Reset ค่าต่างๆ ถ้าใช้ Object Pooling
+    // เช่น public void ResetEnemy() { ... }
 }
