@@ -324,7 +324,7 @@ public class Movement2D : MonoBehaviour
         rb.gravityScale = 0f;
         rb.drag = 0f;
         ghostScript.StartGhosting();
-        CameraShakerHandler.Shake(dashShake);
+        //CameraShakerHandler.Shake(dashShake);
         lastDashDirection = (x != 0f || y != 0f) ? new Vector2(x, y).normalized : (facingRight ? Vector2.right : Vector2.left);
 
         Physics2D.IgnoreLayerCollision(gameObject.layer, LayerMask.NameToLayer("Enemy"), true);
@@ -376,7 +376,7 @@ public class Movement2D : MonoBehaviour
         rb.gravityScale = 0f;
         rb.drag = 0f;
         ghostScript.StartGhosting();
-        CameraShakerHandler.Shake(longDashShake);
+        //CameraShakerHandler.Shake(longDashShake);
         Vector2 longDashDirection = (x != 0f || y != 0f) ? new Vector2(x, y).normalized : (facingRight ? Vector2.right : Vector2.left);
         lastDashDirection = longDashDirection;
         rb.velocity = longDashDirection * longDashSpeed;
@@ -449,23 +449,49 @@ public class Movement2D : MonoBehaviour
     #region Animation and Visuals
     void FlipController()
     {
-        if ((rb.velocity.x < 0f && facingRight) || (rb.velocity.x > 0f && !facingRight))
+        // ป้องกันการพลิกตัวระหว่างที่กำลัง Dash หรือ Long Dash
+        if (isDashing || isLongDashing)
+        {
+            return; // ไม่ทำอะไรเลยถ้ากำลัง Dash อยู่
+        }
+
+        // พลิกตัวตามทิศทางการกด input
+        // ถ้ากดไปทางขวา (horizontalDirection > 0) แต่หน้าหันไปทางซ้าย (!facingRight) -> ให้พลิก
+        if (horizontalDirection > 0 && !facingRight)
+        {
             Flip();
+        }
+        // ถ้ากดไปทางซ้าย (horizontalDirection < 0) แต่หน้าหันไปทางขวา (facingRight) -> ให้พลิก
+        else if (horizontalDirection < 0 && facingRight)
+        {
+            Flip();
+        }
+        // หมายเหตุ: ถ้า horizontalDirection เป็น 0 จะไม่มีการพลิกตัว
+        // ดังนั้นตัวละครจะหันหน้าไปทิศทางล่าสุดที่กดค้างไว้
     }
 
     void Flip()
     {
         facingRight = !facingRight;
-        transform.Rotate(0f, 180f, 0f);
+        // วิธีการพลิกตัวด้วยการ Scale แกน x
+        Vector3 localScale = transform.localScale;
+        localScale.x *= -1f;
+        transform.localScale = localScale;
+
+        // หรือจะยังใช้วิธี Rotate 180 องศาก็ได้ แต่ Scale แกน x มักจะนิยมกว่า
+        // transform.Rotate(0f, 180f, 0f);
     }
 
     private void UpdateAnimatorParameters()
     {
-        bool isMoving = Mathf.Abs(horizontalDirection) > 0.1f;
+        // อัปเดต Animator Parameters เหมือนเดิม
+        bool isMoving = Mathf.Abs(horizontalDirection) > 0.1f; // ยังคงใช้ horizontalDirection สำหรับตรวจสอบการเคลื่อนที่
         bool onGround = isGroundedState && !isDashing && !isLongDashing;
 
         anim.SetBool("isRunning", isMoving && onGround);
         anim.SetBool("isIdle", !isMoving && onGround);
+        // isJumping และ isFalling จัดการใน HandleJump และ SetFallingAnimation แล้ว
+        // isDashing และ isLongDashing จัดการใน SetDashAnimation และ SetLongDashAnimation แล้ว
     }
 
     private void SetDashAnimation(bool isDashing)

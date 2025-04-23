@@ -8,6 +8,7 @@ public class Ghost : MonoBehaviour
     private float   ghostTimer;
     [SerializeField] GameObject ghostPrefab;
     private bool isGhosting = false;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -25,15 +26,35 @@ public class Ghost : MonoBehaviour
             }
             else
             {
-                GameObject currentGhost = Instantiate(ghostPrefab,transform.position,transform.rotation);
+                // สร้าง ghost ที่ตำแหน่งของผู้เล่น และใช้ rotation ของผู้เล่น (ตอนนี้เราจะแก้ไข localScale แทน)
+                GameObject currentGhost = Instantiate(ghostPrefab, transform.position, transform.rotation);
+
+                // ดึง SpriteRenderer ของผู้เล่น เพื่อเอา sprite ปัจจุบัน
                 Sprite currentSprite = GetComponent<SpriteRenderer>().sprite;
-                currentGhost.GetComponent<SpriteRenderer>().sprite = currentSprite;
+
+                // ดึง SpriteRenderer และ Transform ของ ghost ที่เพิ่งสร้างขึ้นมา
+                SpriteRenderer ghostSpriteRenderer = currentGhost.GetComponent<SpriteRenderer>();
+                Transform ghostTransform = currentGhost.transform;
+
+                // ตั้งค่า sprite ให้กับ ghost
+                if (ghostSpriteRenderer != null)
+                {
+                     ghostSpriteRenderer.sprite = currentSprite;
+                }
+
+                // === ส่วนแก้ไข: ทำให้ ghost หันหน้าไปทางเดียวกับผู้เล่น ===
+                // คัดลอกค่า localScale.x ของผู้เล่นไปใส่ให้ ghost
+                Vector3 ghostLocalScale = ghostTransform.localScale;
+                ghostLocalScale.x = transform.localScale.x; // ใช้ transform.localScale.x ของ script ตัวนี้ (ซึ่งคือผู้เล่น)
+                ghostTransform.localScale = ghostLocalScale;
+                // ====================================================
+
                 ghostTimer = ghostDelay;
-                Destroy(currentGhost,0.5f);
+                Destroy(currentGhost, 0.5f); // ทำลาย ghost หลังจากผ่านไป 0.5 วินาที
             }
         }
-       
     }
+
     public void StartGhosting()
     {
         isGhosting = true;
