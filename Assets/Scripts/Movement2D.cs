@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using FirstGearGames.SmoothCameraShaker;
+using TMPro;
 
 public class Movement2D : MonoBehaviour
 {
@@ -11,6 +12,9 @@ public class Movement2D : MonoBehaviour
     private Rigidbody2D rb;
     private Animator anim;
     private Collider2D playerCollider;
+    private SpriteRenderer playerSpriteRenderer;
+    private Color originalColor;
+    public AudioSource audioSource;
     #endregion
 
     #region Header: Layer Masks
@@ -37,7 +41,7 @@ public class Movement2D : MonoBehaviour
     [SerializeField] private float fallMultiplier = 8f;
     [SerializeField] private float lowJumpFallMultiplier = 5f;
     [SerializeField] private float downMultiplier = 12f;
-    [SerializeField] private int extraJumps = 1;
+    [SerializeField] private int extraJumps = 0;
     [SerializeField] private float hangTime = .1f;
     [SerializeField] private float jumpBufferLength = .1f;
     private int extraJumpsValue;
@@ -56,6 +60,7 @@ public class Movement2D : MonoBehaviour
     [SerializeField] private float dashCooldown = 2f;
     [SerializeField] private int dashDamage = 1;
     [SerializeField] private ShakeData dashShake;
+    [SerializeField] private AudioClip dashSound;
     private float dashCooldownTimer = 0f;
     private float dashBufferCounter;
     private bool isDashing;
@@ -63,7 +68,7 @@ public class Movement2D : MonoBehaviour
     private bool canDash => dashBufferCounter > 0f && !hasDashed && dashCooldownTimer <= 0f;
     #endregion
 
-    #region Header: Long Dash Variables
+    #region Long Dash Variables
     [Header("Long Dash Variables")]
     [SerializeField] private float longDashSpeed = 25f;
     [SerializeField] private float longDashLength = 0.6f;
@@ -71,9 +76,10 @@ public class Movement2D : MonoBehaviour
     [SerializeField] private float longDashCooldown = 3f;
     [SerializeField] private ShakeData longDashShake;
     [SerializeField] private int longDashDamage = 2;
+    [SerializeField] private AudioClip longDashSound;
     private bool longDashKillConfirmed = false;
     private TrailRenderer longDashTrail;
-    private float longDashCooldownTimer = 0f;
+    private float longDashCooldownTimer = 0f; // Changed to private
     private float longDashBufferCounter;
     private bool isLongDashing;
     public bool IsLongDashing => isLongDashing;
@@ -81,6 +87,7 @@ public class Movement2D : MonoBehaviour
     private bool canLongDash => longDashBufferCounter > 0f && !hasLongDashed && longDashCooldownTimer <= 0f;
     private Ghost ghostScript;
     private List<Enemy> enemiesHitDuringLongDash = new List<Enemy>();
+    private bool oilItemCollectedDuringLongDash = false; // เพิ่ม Flag สำหรับตรวจสอบการเก็บ Oil Item
     #endregion
 
     #region Header: Ground Collision Variables
@@ -99,12 +106,17 @@ public class Movement2D : MonoBehaviour
     [Header("UI")]
     [SerializeField] private Image longDashFillImage;
     [SerializeField] private Image DashFillImage;
-    [SerializeField] private GameObject[] heartIcons; // เพิ่ม Array สำหรับเก็บ GameObject หัวใจ
+    [SerializeField] private GameObject[] heartIcons;
+    [SerializeField] private GameObject upgradeUI;// เพิ่ม Array สำหรับเก็บ GameObject หัวใจ
+    [SerializeField] private TMP_Text lifeText_TMP;
+    [SerializeField] private GameObject gameWinPanel;
+    [SerializeField] private GameObject gameLosePanel;
     #endregion
-    
+
     #region UI Methods // เพิ่ม Header ใหม่สำหรับ UI methods
     private void UpdateHeartsUI()
     {
+        lifeText_TMP.text = "Life : " + Life.ToString();
         // ตรวจสอบให้แน่ใจว่าจำนวนหัวใจใน UI ไม่เกินจำนวนหัวใจสูงสุดที่เรามีใน Array
         int heartsToShow = Mathf.Clamp(hp, 0, heartIcons.Length);
 
@@ -127,7 +139,7 @@ public class Movement2D : MonoBehaviour
         }
     }
     #endregion
-    
+
     #region Header: Health and Life
     [Header("Health and Life")]
     [SerializeField] private int hp = 3;
@@ -144,6 +156,15 @@ public class Movement2D : MonoBehaviour
         get => life;
         private set => life = Mathf.Max(0, value);
     }
+    public void Heal()
+    {
+        HP = MaxHP;
+        UpdateHeartsUI();
+        Debug.Log("Player healed to full HP via Heal() function.");
+    }
+    [SerializeField] private GameObject maxHp4UI; // GameObject สำหรับ UI Max HP 4
+    [SerializeField] private string trapTag = "Trap";
+    [SerializeField] private AudioClip getHurtSound;
     private Vector3 currentCheckpoint;
     private bool isHit = false;
     #endregion
@@ -162,6 +183,11 @@ public class Movement2D : MonoBehaviour
         isGroundedState = IsGroundedCheck();
         currentCheckpoint = transform.position;
         playerCollider = GetComponent<Collider2D>();
+        playerSpriteRenderer = GetComponent<SpriteRenderer>(); // GetComponent SpriteRenderer
+        if (playerSpriteRenderer != null)
+        {
+            originalColor = playerSpriteRenderer.color; // เก็บสีเดิม
+        }
         UpdateHeartsUI();
     }
 
@@ -231,6 +257,7 @@ public class Movement2D : MonoBehaviour
     #endregion
 
     #region Movement Methods
+
     private void MoveCharacter()
     {
         velocity.Set(horizontalDirection * movementAcceleration, 0f);
@@ -290,6 +317,7 @@ public class Movement2D : MonoBehaviour
         anim.SetBool("isJumping", false);
         anim.SetBool("isFalling", false);
         dashCooldownTimer = 0f;
+        // longDashCooldownTimer = 0f; // นำการรีเซ็ต Long Dash Timer ออกจากตรงนี้
     }
 
     private void SetFallingAnimation()
@@ -340,14 +368,14 @@ public class Movement2D : MonoBehaviour
     }
     #endregion
 
-    #region Dash Methods
+    #region Dash Methods // เลื่อนลงมาเพื่อความสะดวกในการอ่าน
     IEnumerator Dash(float x, float y)
     {
         float dashStartTime = Time.time;
         hasDashed = true;
         isDashing = true;
         isJumping = false;
-        SetDashAnimation(true);
+        SetDashAnimation(true, y > 0.1f); // ส่งค่า isDashingUp ไปด้วย
         rb.velocity = Vector2.zero;
         rb.gravityScale = 0f;
         rb.drag = 0f;
@@ -358,7 +386,7 @@ public class Movement2D : MonoBehaviour
         Physics2D.IgnoreLayerCollision(gameObject.layer, LayerMask.NameToLayer("Enemy"), true);
 
         List<GameObject> hitEnemiesDash = new List<GameObject>();
-
+        audioSource.PlayOneShot(dashSound);
         while (Time.time < dashStartTime + dashLength)
         {
             rb.velocity = lastDashDirection * dashSpeed;
@@ -382,24 +410,23 @@ public class Movement2D : MonoBehaviour
         Physics2D.IgnoreLayerCollision(gameObject.layer, LayerMask.NameToLayer("Enemy"), false);
 
         isDashing = false;
-        SetDashAnimation(false);
+        SetDashAnimation(false, false); // รีเซ็ต isDashingUp
         ghostScript.StopGhosting();
         dashCooldownTimer = dashCooldown;
         hasDashed = false;
         rb.gravityScale = 1f;
     }
+     
     #endregion
 
-   // Inside your Movement2D.cs script
-
     #region Long Dash Methods
-    IEnumerator LongDash(float x, float y)
+     IEnumerator LongDash(float x, float y)
     {
         float longDashStartTime = Time.time;
         hasLongDashed = true;
         isLongDashing = true;
         isJumping = false;
-        SetLongDashAnimation(true);
+        SetLongDashAnimation(true, y > 0.1f); // ส่งค่า isDashingUp ไปด้วย
         longDashTrail.emitting = true;
         rb.gravityScale = 0f;
         rb.drag = 0f;
@@ -412,8 +439,9 @@ public class Movement2D : MonoBehaviour
         Physics2D.IgnoreLayerCollision(gameObject.layer, LayerMask.NameToLayer("Enemy"), true);
 
         List<GameObject> hitEnemiesLongDash = new List<GameObject>();
-        longDashKillConfirmed = false; // รีเซ็ต flag ก่อนเริ่ม Long Dash
-
+        longDashKillConfirmed = false;
+        oilItemCollectedDuringLongDash = false;
+        audioSource.PlayOneShot(longDashSound);
         while (Time.time < longDashStartTime + longDashLength)
         {
             rb.velocity = longDashDirection * longDashSpeed;
@@ -423,20 +451,15 @@ public class Movement2D : MonoBehaviour
             {
                 GameObject enemyGameObject = hitCollider.gameObject;
                 Enemy enemyScript = enemyGameObject.GetComponent<Enemy>();
-                // ตรวจสอบว่า enemyScript ยังไม่เป็น null และยังไม่ถูก process ใน dash ครั้งนี้
                 if (enemyScript != null && !hitEnemiesLongDash.Contains(enemyGameObject))
                 {
-                    // เรียก TakeDamage และรับค่า return
                     bool killedByDash = enemyScript.TakeDamage(longDashDamage);
-
                     Debug.Log("Player long dashed through and hit " + enemyGameObject.name + " for " + longDashDamage + " damage!");
-                    hitEnemiesLongDash.Add(enemyGameObject); // เพิ่มเข้า list ที่โดนชนแล้ว เพื่อไม่ให้โดนชนซ้ำใน dash เดียวกัน
-
-                    // ถ้า killedByDash เป็น true แสดงว่าศัตรูตัวนี้ตายจากการโจมตีครั้งนี้
+                    hitEnemiesLongDash.Add(enemyGameObject);
                     if (killedByDash)
                     {
-                         longDashKillConfirmed = true; // ตั้งค่า flag
-                         Debug.Log("Enemy confirmed killed by long dash: " + enemyGameObject.name); // เพิ่ม debug log ตรงนี้เพื่อยืนยัน
+                        longDashKillConfirmed = true;
+                        Debug.Log("Enemy confirmed killed by long dash: " + enemyGameObject.name);
                     }
                 }
             }
@@ -446,24 +469,27 @@ public class Movement2D : MonoBehaviour
         Physics2D.IgnoreLayerCollision(gameObject.layer, LayerMask.NameToLayer("Enemy"), false);
 
         isLongDashing = false;
-        SetLongDashAnimation(false);
+        SetLongDashAnimation(false, false); // รีเซ็ต isDashingUp
         anim.SetBool("isFalling", false);
 
-        // ตรวจสอบ flag ที่ตั้งค่าในขณะที่ dash อยู่
-        if (longDashKillConfirmed)
+        if (oilItemCollectedDuringLongDash)
         {
-            longDashCooldownTimer = 0f; // รีเซ็ต cooldown เป็น 0
-            Debug.Log("Long Dash cooldown reset after kill."); // Log นี้ควรจะขึ้นแล้ว
+            longDashCooldownTimer = 0f;
+            Debug.Log("Long Dash cooldown reset after collecting Oil Item during dash.");
+        }
+        else if (longDashKillConfirmed)
+        {
+            longDashCooldownTimer = 0f;
+            Debug.Log("Long Dash cooldown reset after kill.");
         }
         else
-            longDashCooldownTimer = longDashCooldown; // ถ้าไม่ตาย ให้ใช้ cooldown ปกติ
+            longDashCooldownTimer = longDashCooldown;
 
         longDashBufferCounter = 0f;
         longDashTrail.emitting = false;
         ghostScript.StopGhosting();
         hasLongDashed = false;
         rb.gravityScale = 1f;
-        // enemiesHitDuringLongDash.Clear(); // รายการนี้ดูเหมือนจะไม่ได้ใช้งานในโค้ดที่ให้มา อาจจะลบทิ้งได้
     }
     #endregion
 
@@ -471,6 +497,39 @@ public class Movement2D : MonoBehaviour
     private bool IsGroundedCheck()
     {
         return Physics2D.BoxCast(transform.position, boxSize, 0, -transform.up, distanceGroundCheck, layerMask);
+    }
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        // ตรวจสอบว่า GameObject ที่เข้ามาชนมี Tag เป็น Trap หรือไม่
+        if (other.CompareTag(trapTag))
+        {
+            // ลด HP จนหมด
+            HP = 0;
+            Debug.Log("Player hit a Trap! HP reduced to 0.");
+            UpdateHeartsUI(); // อัปเดต UI ทันที
+
+            // คุณอาจเพิ่ม Effect เสียง หรือการทำงานอื่น ๆ เมื่อโดน Trap ที่นี่
+
+            // ตรวจสอบว่า HP หมดแล้วหรือไม่ เพื่อจัดการการตายหรือ Respawn
+            if (HP <= 0)
+            {
+                Life--;
+                Debug.Log("HP depleted by Trap! Life remaining: " + Life);
+                if (Life > 0)
+                    Respawn();
+                else
+                    GameOver();
+            }
+        }
+        if (other.CompareTag("TuWall"))
+        {
+            Debug.Log("Player hit a Death Wall! Triggering Respawn.");
+            Respawn();
+        }
+        if (other.CompareTag("Win"))
+        {
+            gameWinPanel.SetActive(true);
+        }
     }
     #endregion
 
@@ -484,36 +543,27 @@ public class Movement2D : MonoBehaviour
         }
 
         // พลิกตัวตามทิศทางการกด input
-        // ถ้ากดไปทางขวา (horizontalDirection > 0) แต่หน้าหันไปทางซ้าย (!facingRight) -> ให้พลิก
         if (horizontalDirection > 0 && !facingRight)
         {
             Flip();
         }
-        // ถ้ากดไปทางซ้าย (horizontalDirection < 0) แต่หน้าหันไปทางขวา (facingRight) -> ให้พลิก
         else if (horizontalDirection < 0 && facingRight)
         {
             Flip();
         }
-        // หมายเหตุ: ถ้า horizontalDirection เป็น 0 จะไม่มีการพลิกตัว
-        // ดังนั้นตัวละครจะหันหน้าไปทิศทางล่าสุดที่กดค้างไว้
     }
 
     void Flip()
     {
         facingRight = !facingRight;
-        // วิธีการพลิกตัวด้วยการ Scale แกน x
         Vector3 localScale = transform.localScale;
         localScale.x *= -1f;
         transform.localScale = localScale;
-
-        // หรือจะยังใช้วิธี Rotate 180 องศาก็ได้ แต่ Scale แกน x มักจะนิยมกว่า
-        // transform.Rotate(0f, 180f, 0f);
     }
 
     private void UpdateAnimatorParameters()
     {
-        // อัปเดต Animator Parameters เหมือนเดิม
-        bool isMoving = Mathf.Abs(horizontalDirection) > 0.1f; // ยังคงใช้ horizontalDirection สำหรับตรวจสอบการเคลื่อนที่
+        bool isMoving = Mathf.Abs(horizontalDirection) > 0.1f;
         bool onGround = isGroundedState && !isDashing && !isLongDashing;
 
         anim.SetBool("isRunning", isMoving && onGround);
@@ -522,20 +572,22 @@ public class Movement2D : MonoBehaviour
         // isDashing และ isLongDashing จัดการใน SetDashAnimation และ SetLongDashAnimation แล้ว
     }
 
-    private void SetDashAnimation(bool isDashing)
+    private void SetDashAnimation(bool isDashing, bool isDashingUp)
     {
         anim.SetBool("isDashing", isDashing);
         anim.SetBool("isLongDashing", false);
         anim.SetBool("isJumping", false);
         anim.SetBool("isFalling", false);
+        anim.SetBool("isDashingUp", isDashingUp); // ใช้ Parameter เดียวกัน
     }
 
-    private void SetLongDashAnimation(bool isLongDashing)
+    private void SetLongDashAnimation(bool isLongDashing, bool isLongDashingUp)
     {
         anim.SetBool("isLongDashing", isLongDashing);
         anim.SetBool("isDashing", false);
         anim.SetBool("isJumping", false);
         anim.SetBool("isFalling", false);
+        anim.SetBool("isDashingUp", isLongDashingUp); // ใช้ Parameter เดียวกัน
     }
     #endregion
 
@@ -595,11 +647,24 @@ public class Movement2D : MonoBehaviour
         anim.SetLayerWeight(1, 1);
         isHit = true;
 
+        if (playerSpriteRenderer != null)
+        {
+            playerSpriteRenderer.color = Color.red;
+        }
+        audioSource.PlayOneShot(getHurtSound);
+
         yield return new WaitForSeconds(1);
+
         anim.SetLayerWeight(1, 0);
         Physics2D.IgnoreLayerCollision(7, 8, false);
         isHit = false;
+
+        if (playerSpriteRenderer != null)
+        {
+            playerSpriteRenderer.color = originalColor;
+        }
     }
+
 
     private void Respawn()
     {
@@ -616,6 +681,7 @@ public class Movement2D : MonoBehaviour
     private void GameOver()
     {
         Debug.Log("Game Over! Player has run out of lives.");
+        gameLosePanel.SetActive(true);
         Destroy(gameObject);
     }
 
@@ -624,7 +690,50 @@ public class Movement2D : MonoBehaviour
         dashCooldownTimer = 0f;
         longDashCooldownTimer = 0f;
         Debug.Log("Dash cooldown reset from Oil Item.");
+        oilItemCollectedDuringLongDash = true;
+    }
+    #endregion
+
+    #region Upgrade Methods // เพิ่ม Region ใหม่สำหรับ Upgrade Methods
+    public void AddExtraJump()
+    {
+        if (extraJumps == 0)
+        {
+            extraJumps = 1;
+            Debug.Log("Extra Jump added! Current extra jumps: " + extraJumps);
+        }
+        else
+        {
+            Debug.Log("Extra Jump already enabled.");
+        }
+        upgradeUI.SetActive(false);
+    }
+
+    public void IncreaseDashDamage()
+    {
+        dashDamage = 2;
+        longDashDamage = 3;
+        upgradeUI.SetActive(false);
+        Debug.Log("Dash damage increased! Normal Dash: " + dashDamage + ", Long Dash: " + longDashDamage);
+    }
+    public void IncreaseMaxHPTo4()
+    {
+        if (maxHp < 4)
+        {
+            maxHp = 4;
+            HP = maxHp;
+            if (maxHp4UI != null)
+            {
+                maxHp4UI.SetActive(true);
+            }
+            UpdateHeartsUI();
+            Debug.Log("Max HP increased to " + maxHp + ". Current HP is now " + HP + ".");
+        }
+        else
+        {
+            Debug.Log("Max HP is already at the maximum value.");
+        }
+        upgradeUI.SetActive(false);
     }
     #endregion
 }
-

@@ -188,6 +188,7 @@ MonoBehaviour:
   explosionTimer: 3
   explosionRadius: 3
   explosionDamage: 1
+  explosionPrefab: {fileID: 2486505220489061952, guid: 02935e582b17b304ba35272862de880b, type: 3}
   isDetected: 0
   playerTransform: {fileID: 0}
 --- !u!50 &315952289023094099

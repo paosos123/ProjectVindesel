@@ -23,6 +23,7 @@ public class EnemyPatrol : Enemy
     [SerializeField] private float explosionTimer = 3f; // เวลาหน่วงก่อนระเบิด
     [SerializeField] private float explosionRadius = 2f; // รัศมีการระเบิด
     [SerializeField] private float explosionDamage = 1f; // ดาเมจจากการระเบิด
+    [SerializeField] private GameObject explosionPrefab; // Prefab ที่จะสร้างเมื่อระเบิด
     private bool canExplode = false;
     private float currentExplosionTimer;
     public bool isDetected = false; // ตัวแปรบอกว่าตรวจพบผู้เล่นหรือไม่
@@ -121,6 +122,16 @@ public class EnemyPatrol : Enemy
     void Explode()
     {
         Debug.Log("Enemy Exploded!");
+        // สร้าง Prefab ณ ตำแหน่งที่ศัตรูอยู่
+        if (explosionPrefab != null)
+        {
+            Instantiate(explosionPrefab, transform.position, Quaternion.identity);
+        }
+        else
+        {
+            Debug.LogWarning("Explosion Prefab is not assigned!");
+        }
+
         // ตรวจสอบผู้เล่นที่อยู่ในรัศมีการระเบิด
         Collider2D[] hitColliders = Physics2D.OverlapCircleAll(transform.position, explosionRadius, playerLayer);
         foreach (var hitCollider in hitColliders)
@@ -158,9 +169,9 @@ public class EnemyPatrol : Enemy
         Gizmos.DrawWireSphere(transform.position, detectionRange);
 
         // แสดงรัศมีการระเบิด (สีแดงเมื่อตรวจพบผู้เล่น)
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, explosionRadius);
-        
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, explosionRadius);
+
     }
 
     void OnTriggerEnter2D(Collider2D col)

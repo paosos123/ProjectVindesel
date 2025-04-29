@@ -3,15 +3,37 @@ using UnityEngine;
 public class Fusebox : MonoBehaviour
 {
     [SerializeField] private string playerTag = "Player"; // Tag ของผู้เล่น
-    [SerializeField] private float interactionRadius = 2f; // รัศมีที่ผู้เล่นสามารถ Interact กับกล่องฟิวส์ได้
-    [SerializeField] private GameObject doorToOpen; // GameObject ประตูที่จะเปิด (ถ้าไม่ได้เป็น Child โดยตรง)
+    [SerializeField] private Sprite fuseboxOpenSprite; // Sprite สำหรับสถานะเปิด
+    [SerializeField] private GameObject doorToOpen;
+    [SerializeField] private GameObject qButton;// GameObject ประตูที่จะเปิด (ถ้าไม่ได้เป็น Child โดยตรง)
     private bool isPlayerInRange = false;
     private GameObject playerObjectInRange; // อ้างอิง GameObject ของผู้เล่นที่อยู่ในระยะ
+    private SpriteRenderer fuseboxRenderer; // Component SpriteRenderer ของ Fusebox เอง
+
+    void Start()
+    {
+        // GetComponent หา SpriteRenderer เมื่อเริ่มเกม
+        fuseboxRenderer = GetComponent<SpriteRenderer>();
+        if (fuseboxRenderer == null)
+        {
+            Debug.LogError("Fusebox GameObject ต้องมี Component SpriteRenderer!");
+            enabled = false; // ปิดสคริปต์ถ้าไม่มี SpriteRenderer
+            return;
+        }
+    }
 
     void Update()
     {
-        // ตรวจสอบว่าผู้เล่นอยู่ในระยะและกดปุ่ม 'Q'
-        if (isPlayerInRange && Input.GetKeyDown(KeyCode.Q))
+        if (isPlayerInRange )
+        {
+            qButton.SetActive(true);
+        }
+        else
+        {
+            qButton.SetActive(false);
+        }
+    // ตรวจสอบว่าผู้เล่นอยู่ในระยะและกดปุ่ม 'Q'
+    if (isPlayerInRange && Input.GetKeyDown(KeyCode.Q))
         {
             ActivateFusebox();
         }
@@ -41,6 +63,16 @@ public class Fusebox : MonoBehaviour
 
     private void ActivateFusebox()
     {
+        // เปลี่ยน Sprite ของ Fusebox เป็นสถานะเปิด
+        if (fuseboxOpenSprite != null && fuseboxRenderer != null)
+        {
+            fuseboxRenderer.sprite = fuseboxOpenSprite;
+        }
+        else
+        {
+            Debug.LogWarning("Fusebox Open Sprite ไม่ได้ถูกกำหนด หรือไม่พบ SpriteRenderer!");
+        }
+
         if (doorToOpen != null)
         {
             // กรณีที่ประตูถูกกำหนดไว้ใน Inspector โดยตรง
@@ -63,9 +95,4 @@ public class Fusebox : MonoBehaviour
     }
 
     // วาด Gizmos เพื่อแสดงรัศมีการ Interact ใน Scene View
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, interactionRadius);
-    }
 }
