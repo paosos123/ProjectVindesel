@@ -43,6 +43,18 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: PROPbg
+    uniqueID: 3760418705
+    locked: 0
+  - name: GROUND
+    uniqueID: 4284933759
+    locked: 0
+  - name: PROP
+    uniqueID: 2970260817
+    locked: 0
+  - name: Trap
+    uniqueID: 3779185347
+    locked: 0
   - name: Player
     uniqueID: 1874076369
     locked: 0

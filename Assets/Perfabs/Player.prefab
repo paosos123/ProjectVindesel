@@ -76,11 +76,11 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 1874076369
+  m_SortingLayer: 5
   m_SortingOrder: 1
   m_Sprite: {fileID: 21300000, guid: 6181f95b4ca0e9e47ac5540e4097f37b, type: 3}
-  m_Color: {r: 0.9716981, g: 0.9716981, b: 0.9716981, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 1
@@ -177,6 +177,9 @@ MonoBehaviour:
   layerMask:
     serializedVersion: 2
     m_Bits: 64
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 256
   movementAcceleration: 60
   maxMoveSpeed: 12
   groundLinearDrag: 7
@@ -192,18 +195,25 @@ MonoBehaviour:
   dashLength: 0.3
   dashBufferLength: 0.1
   dashCooldown: 1
+  dashDamage: 1
   dashShake: {fileID: 11400000, guid: bdf99ef0cc5196f43908e130e4f5c777, type: 2}
   longDashSpeed: 30
   longDashLength: 0.3
   longDashBufferLength: 0.1
   longDashCooldown: 5
   longDashShake: {fileID: 11400000, guid: 7d29160c4b2a9a243910fe656fa954e0, type: 2}
+  longDashDamage: 2
   distanceGroundCheck: 2.36
   boxSize: {x: 1.33, y: 0.27}
   longDashFillImage: {fileID: 0}
   DashFillImage: {fileID: 0}
+  heartIcons:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   hp: 3
-  maxLife: 3
+  maxHp: 3
+  life: 3
 --- !u!95 &3699794507452335814
 Animator:
   serializedVersion: 5
@@ -265,7 +275,7 @@ TrailRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 1874076369
-  m_SortingLayer: 1
+  m_SortingLayer: 5
   m_SortingOrder: 0
   m_Time: 0.5
   m_PreviewTimeScale: 1
